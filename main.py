@@ -113,7 +113,7 @@ range_doppler_map = np.fft.fftshift(np.fft.fft(range_doppler_map, axis=0), axes=
 
 # Visualisation de la carte de portée-Doppler (RDM)
 plt.figure(4)
-plt.imshow(np.abs(range_doppler_map), extent=[-Fs/2, Fs/2, 0, F/2], aspect='auto', cmap='jet')
+plt.imshow(np.abs(range_doppler_map), extent=[-Fs, Fs, 0, F], aspect='auto', cmap='jet')
 plt.xlabel('Vitesse Doppler (Hz)')
 plt.ylabel('Portée (m)')
 plt.title('Carte de portée-Doppler (RDM)')
@@ -131,9 +131,9 @@ targets = np.array(target_indices).T
 c = 299792458.0  # Vitesse de la lumière en m/s
 wavelength = c / fc  # Longueur d'onde
 range_resolution = c / (2 * B)
-doppler_resolution = wavelength / (2 * T_chirp)
+doppler_resolution = wavelength / ((2 * T_chirp)*10**6)
 
 # Discussion de la pertinence des paramètres radar
 print(f"Résolution de portée : {range_resolution:.2f} m")
-print(f"Résolution Doppler : {doppler_resolution:.2f} Hz")
+print(f"Résolution Doppler : {doppler_resolution:.2f} MHz")
 
