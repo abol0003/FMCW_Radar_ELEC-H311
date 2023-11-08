@@ -94,12 +94,24 @@ t_total = num_chirps * T_chirp
 t = np.linspace(0, t_total, num_chirps * N, endpoint=False)
 fmcw_signal = np.tile(chirp_signal, num_chirps)
 
-# Simulation de l'impact du canal sur le signal
-# Dans ce cas, nous supposons un simple retard de temps et de fréquence constants
-delay_samples = int(Fs * 0.001)  # Retard de 1 ms (1 ms = 1000 µs)
-doppler_shift = 1e3  # Changement Doppler de 1 kHz
+# Simulation de l'impact du canal sur le signal pour cinq cibles
+c = 299792458.0  # Vitesse de la lumière en m/s
+R_max = 20  # Portée maximale en mètres
+V_max = 2  # Vitesse maximale en m/s
+N_targets = 5  # Nombre de cibles simulées
 
-received_signal = np.roll(fmcw_signal, delay_samples) * np.exp(1j * 2 * np.pi * doppler_shift * t)
+# Génération de retards et vitesses aléatoires pour chaque cible
+random_delays = np.random.uniform(0, R_max, N_targets)
+random_speeds = np.random.uniform(0, V_max, N_targets)
+delay_samples = (random_delays * Fs / c).astype(int)
+doppler_shifts = random_speeds * (fc / c) * 1e3  # En kHz
+
+# Simuler l'impact du canal pour chaque cible
+received_signal = np.zeros_like(fmcw_signal, dtype=np.complex128)
+for i in range(N_targets):
+    current_delay = delay_samples[i]
+    current_doppler_shift = doppler_shifts[i]
+    received_signal += np.roll(fmcw_signal, current_delay) * np.exp(1j * 2 * np.pi * current_doppler_shift * t)
 
 # Traitement radar
 # Sérialisation en parallèle (S/P)
@@ -111,6 +123,19 @@ range_doppler_map = np.fft.fftshift(np.fft.fft(received_signal_blocks, axis=1), 
 # FFT en dimension lente
 range_doppler_map = np.fft.fftshift(np.fft.fft(range_doppler_map, axis=0), axes=0)
 
+# Détection de cibles sur la RDM
+detection_threshold = 0.5 * np.max(np.abs(range_doppler_map))
+target_indices = np.where(np.abs(range_doppler_map) > detection_threshold)
+targets = np.array(target_indices).T
+
+# Afficher les valeurs de toutes les différentes cibles détectées
+for i in range(len(targets)):
+    range_index, doppler_index = targets[i]
+    range_value = (range_index - N // 2) * c / (2 * Fs)
+    doppler_value = (doppler_index - K // 2) * Fs / (2 * F)
+
+    print(f"Cible {i+1}: Portée = {abs(range_value):.2f} m, Vitesse Doppler = {doppler_value:.2f} Hz")
+
 # Visualisation de la carte de portée-Doppler (RDM)
 plt.figure(4)
 plt.imshow(np.abs(range_doppler_map), extent=[-Fs, Fs, 0, F], aspect='auto', cmap='jet')
@@ -118,22 +143,6 @@ plt.xlabel('Vitesse Doppler (Hz)')
 plt.ylabel('Portée (m)')
 plt.title('Carte de portée-Doppler (RDM)')
 plt.grid()
-plt.xlim(-2*Fs, 2*Fs) #ajuste l'axe des x
-plt.ylim(0, 2*F) #ajuste l'axe des y
+plt.xlim(-2*Fs, 2*Fs)  # Ajuste l'axe des x
+plt.ylim(0, 2*F)  # Ajuste l'axe des y
 plt.show()
-
-# Détection de cibles sur la RDM
-detection_threshold = 0.5 * np.max(np.abs(range_doppler_map))
-target_indices = np.where(np.abs(range_doppler_map) > detection_threshold)
-targets = np.array(target_indices).T
-
-# Calcul des résolutions de portée et de Doppler
-c = 299792458.0  # Vitesse de la lumière en m/s
-wavelength = c / fc  # Longueur d'onde
-range_resolution = c / (2 * B)
-doppler_resolution = wavelength / ((2 * T_chirp)*10**6)
-
-# Discussion de la pertinence des paramètres radar
-print(f"Résolution de portée : {range_resolution:.2f} m")
-print(f"Résolution Doppler : {doppler_resolution:.2f} MHz")
-
