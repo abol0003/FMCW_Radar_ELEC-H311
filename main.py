@@ -124,10 +124,13 @@ for scenario in range(num_scenarios):
     T_chirp = 1 / B
     t, fmcw_signal = generate_fmcw_signal(T_chirp, K)
 
-    # Étape 2 : Simuler l'impact du canal (une cible)
+    # Simuler l'impact du canal (une cible)
     received_signal = simulate_multi_target_channel(t, fmcw_signal, target_range, target_velocity)
 
-    # Étape 3 : Traitement radar
+    # Stocker le signal reçu pour une utilisation ultérieure
+    received_signal_scenario = received_signal.copy()
+
+    #Traitement radar
     received_signal_blocks = received_signal.reshape(K, -1)
     range_doppler_map = np.fft.fftshift(np.fft.fft(received_signal_blocks, axis=1), axes=1)
     range_doppler_map = np.fft.fftshift(np.fft.fft(range_doppler_map, axis=0), axes=0)
@@ -174,6 +177,7 @@ def detect_targets(rdm, threshold):
     binary_map = rdm > threshold
     return binary_map
 
+
 # Fonction pour estimer la probabilité de fausse alarme et de détection
 def estimate_probabilities(binary_map, true_targets):
     false_alarm_map = binary_map & ~true_targets
@@ -187,7 +191,6 @@ def estimate_probabilities(binary_map, true_targets):
 # Paramètres
 snr_values = [10, 15, 20]  # Valeurs de SNR à évaluer
 num_trials = 100  # Nombre de réalisations de bruit pour l'analyse des performances
-
 # Répéter l'analyse pour chaque valeur de SNR
 for snr in snr_values:
     # Initialiser les résultats
@@ -197,7 +200,8 @@ for snr in snr_values:
     for _ in range(num_trials):
         # Étape 1: Générer le signal RDM avec des cibles
         # (remplacez cela par votre génération de RDM)
-        rdm_with_targets = np.random.rand(100, 100)
+        # Utilisation du signal reçu simulé à partir de l'étape 2
+        rdm_with_targets = np.abs(np.fft.fftshift(np.fft.fft(received_signal_scenario)))
 
         # Étape 2: Ajouter du bruit au signal RDM
         rdm_with_noise = add_noise(rdm_with_targets, snr)
@@ -221,4 +225,3 @@ for snr in snr_values:
     plt.xlabel('Probability of False Alarm')
     plt.ylabel('Probability of Miss Detection')
     plt.show()
-
