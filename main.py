@@ -17,7 +17,7 @@ t = np.linspace(0, T, num_samples, endpoint=False)
 fi = beta * t
 
 # Calcul de la phase instantanée
-phi_i = 2 * np.pi * np.cumsum(fi) * (1 / F)  # Correction de la phase instantanée
+phi_i = 2 * np.pi * np.cumsum(fi) * (1 / F)
 
 # Générez le signal en bande de base e^{jϕi(t)}
 baseband_signal = np.exp(1j * phi_i)
@@ -28,9 +28,9 @@ plt.plot(t, np.real(baseband_signal))
 plt.xlabel('Temps (s)')
 plt.ylabel('Partie réelle')
 plt.title('Signal en bande de base (Partie réelle)')
-plt.xlim(0, 2*T)
+plt.xlim(0, 2 * T)
 plt.grid()
-#plt.show()
+# plt.show()
 
 # Visualiser la partie imaginaire du signal en bande de base
 plt.figure(2)
@@ -39,8 +39,8 @@ plt.xlabel('Temps (s)')
 plt.ylabel('Partie imaginaire')
 plt.title('Signal en bande de base (Partie imaginaire)')
 plt.grid()
-plt.xlim(0, 2*T)
-#plt.show()
+plt.xlim(0, 2 * T)
+# plt.show()
 
 # Calcul de la transformée de Fourier
 fft_result = np.fft.fftshift(np.fft.fft(baseband_signal))
@@ -72,12 +72,7 @@ bandwidth = freq_range[indices[-1]] - freq_range[indices[0]]
 bandwidth_value = bandwidth[0]  # Extraction de la valeur de la largeur de bande
 print("Largeur de bande du signal FMCW en bande de base : {:.2f} Hz".format(bandwidth_value))
 
-
 ##### STEP 2 ######
-
-import numpy as np
-import matplotlib.pyplot as plt
-
 # Paramètres radar
 fc = 24e9  # Fréquence porteuse en Hz (24 GHz)
 B = 200e6  # Plage de fréquence en Hz (200 MHz)
@@ -105,6 +100,49 @@ def simulate_multi_target_channel(t, fmcw_signal, target_range, target_velocity)
     received_signal = np.roll(fmcw_signal, delay_samples) * np.exp(1j * 2 * np.pi * doppler_shift * t)
     return received_signal
 
+# Fonction pour calculer la Range-Doppler Map (RDM)
+def get_RDM(K, N, T, c, F_c, Beta, t_emission, random_speed, random_delay, F_b, F_d, R_0, Kappa):
+    # Réaliser tous les mélanges et les calculs des signaux différents
+    K_N_fig_4 = np.zeros((K, N), dtype=complex)  # Utilisation de la figure 4 dans les principes du radar FMCW
+    K_N_eq_16 = np.zeros((K, N), dtype=complex)  # Utilisation de l'équation 16 dans les principes du radar FMCW
+
+    for k in range(K):
+        # Représentation en bande de base du signal pour une émission de chrip
+        BB_s_t = np.exp(1j * (np.pi * Beta * T ** 2 * k + np.pi * Beta * (t_emission[k, :] ** 2)))
+        # Représentation en bande de base du signal pour une réception de chrip
+        BB_r_t = np.exp(1j * np.pi * Beta * ((t_emission[k, :] - random_delay) ** 2))
+        # Représentation en bande de base conjuguée du signal pour une émission de chrip
+        BB_s_t_star = np.conj(BB_s_t)
+        # Multiplication de BB_r_t avec le décalage de fréquence
+        BB_r_t_shifted = BB_r_t * np.exp(-1j * 4 * np.pi * F_c / c * (R_0 + k * random_speed * T))
+        # Multiplication de BB_r_t_shifted avec BB_s_t_star pour obtenir le signal vidéo
+        x_t_fig_4 = BB_r_t_shifted * BB_s_t_star
+        x_t_fig_4 = np.conj(x_t_fig_4)
+
+        # Pour la tâche 3 en utilisant l'équation 16
+
+        # Signal vidéo conjugué complexe
+        x_t_eq_16 = Kappa * np.exp(1j * 2 * np.pi * F_b * t_emission[k, :]) * np.exp(1j * 2 * np.pi * F_d * k * T)
+
+        # Affecter x_t_eq_16 à la ligne correspondante de K_N_eq_16
+        K_N_eq_16[k, :] = x_t_eq_16
+
+        # Affecter x_t_fig_4 à la ligne correspondante de K_N_fig_4
+        K_N_fig_4[k, :] = x_t_fig_4
+
+    N_K_fig_4 = K_N_fig_4.T  #matrice NxK
+    N_K_eq_16 = K_N_eq_16.T  #matrice NxK
+
+    range_K_fig_4 = np.abs(
+        np.fft.fftshift(np.fft.fft(N_K_fig_4, axis=1), axes=1))  # FFT sur chaque colonne comme un vecteur
+    RDM_fig_4 = np.abs(np.fft.fftshift(np.fft.fft(range_K_fig_4, axis=0), axes=0))  # FFT sur chaque ligne
+    range_K_eq_16 = np.abs(
+        np.fft.fftshift(np.fft.fft(N_K_eq_16, axis=1), axes=1))  # FFT sur chaque colonne comme un vecteur
+    RDM_eq_16 = np.abs(np.fft.fftshift(np.fft.fft(range_K_eq_16, axis=0), axes=0))  # FFT sur chaque ligne
+
+    return RDM_fig_4, RDM_eq_16
+
+
 # Nombre de scénarios à simuler (chacun avec une cible)
 num_scenarios = 5
 
@@ -124,32 +162,38 @@ for scenario in range(num_scenarios):
     T_chirp = 1 / B
     t, fmcw_signal = generate_fmcw_signal(T_chirp, K)
 
-    # Simuler l'impact du canal (une cible)
+    # Simuler l'impact du canal
     received_signal = simulate_multi_target_channel(t, fmcw_signal, target_range, target_velocity)
 
     # Stocker le signal reçu pour une utilisation ultérieure
     received_signal_scenario = received_signal.copy()
 
-    #Traitement radar
+    # Traitement radar
     received_signal_blocks = received_signal.reshape(K, -1)
     range_doppler_map = np.fft.fftshift(np.fft.fft(received_signal_blocks, axis=1), axes=1)
     range_doppler_map = np.fft.fftshift(np.fft.fft(range_doppler_map, axis=0), axes=0)
 
     # Étape 4 : Affichage et identification de la cible
-    plt.subplot(2, 3, scenario + 1)
-    plt.imshow(np.abs(range_doppler_map), extent=[-target_velocity*1.5, target_velocity*1.5 / 2, 0, target_range * 1.5], aspect='auto', cmap='jet')
+    fig = plt.figure(figsize=(15, 5))
 
-    # Marquer l'emplacement de la cible détectée
-    plt.scatter(0, target_range , c='red', marker='o', s=50, label='Cible détectée')
+    # Plot 3D
+    ax = fig.add_subplot(121, projection='3d')
+    K_vals, N_vals = np.meshgrid(np.arange(N), np.arange(K))
+    ax.plot_surface(N_vals, K_vals, np.abs(range_doppler_map), cmap='viridis', edgecolor='k')
+    ax.set_xlabel('N')
+    ax.set_ylabel('K')
+    ax.set_zlabel('Amplitude')
+    ax.set_title(f'RDM 3D - Scénario {scenario + 1}')
 
-    plt.xlabel('Vitesse Doppler (Hz)')
-    plt.ylabel('Portée (m)')
-    plt.title(f'RDM - Scénario {scenario + 1}')
-    plt.legend()
-    plt.grid()
-
-plt.tight_layout()
-plt.show()
+    # Plot 2D
+    ax = fig.add_subplot(122)
+    im = ax.imshow(np.abs(range_doppler_map), extent=[0, K, 0, N], cmap='viridis', origin='lower')
+    ax.set_xlabel('K')
+    ax.set_ylabel('N')
+    ax.set_title(f'RDM 2D - Scénario {scenario + 1}')
+    plt.colorbar(im)
+    plt.tight_layout()
+    plt.show()
 
 ############### STEP 3 ###############
 import numpy as np
@@ -177,7 +221,6 @@ def detect_targets(rdm, threshold):
     binary_map = rdm > threshold
     return binary_map
 
-
 # Fonction pour estimer la probabilité de fausse alarme et de détection
 def estimate_probabilities(binary_map, true_targets):
     false_alarm_map = binary_map & ~true_targets
@@ -198,8 +241,6 @@ for snr in snr_values:
     probabilities_miss_detection = []
 
     for _ in range(num_trials):
-        # Étape 1: Générer le signal RDM avec des cibles
-        # (remplacez cela par votre génération de RDM)
         # Utilisation du signal reçu simulé à partir de l'étape 2
         rdm_with_targets = np.abs(np.fft.fftshift(np.fft.fft(received_signal_scenario)))
 
@@ -211,7 +252,7 @@ for snr in snr_values:
         binary_map = detect_targets(rdm_with_noise, threshold)
 
         # Étape 4: Estimer les probabilités de fausse alarme et de détection
-        true_targets = rdm_with_targets > 0.5  # À ajuster selon vos cibles réelles
+        true_targets = rdm_with_targets >0.5 # 0.5 est le seuil donc toute amplitude de la RDM supérieure à 0.5 est considérée comme une vraie cible.
         probability_false_alarm, probability_miss_detection = estimate_probabilities(binary_map, true_targets)
 
         # Stocker les résultats
