@@ -95,7 +95,7 @@ snr_values = [10, 15, 20]  # Valeurs de SNR à évaluer
 # Fonction pour générer le signal FMCW
 def generate_fmcw_signal(T_chirp, num_chirps):
     t_chirp = np.linspace(0, T_chirp, N, endpoint=False)
-    chirp_signal = np.exp(2j * np.pi * (F_c * t_chirp + 0.5 * B * t_chirp ** 2))
+    chirp_signal = np.exp(1j * np.pi * beta * t_chirp**2) * np.exp(1j * 2 * np.pi * F_c * t_chirp)
     t_total = num_chirps * T_chirp
     t = np.linspace(0, t_total, num_chirps * N, endpoint=False)
     fmcw_signal = np.tile(chirp_signal, num_chirps)
@@ -194,7 +194,7 @@ for scenario in range(num_scenarios):
         rdm_with_noise_combined[:, :, scenario, snr_index] = rdm_with_noise.reshape((K, N))
 
         #Appliquer un seuil pour détecter les cibles
-        threshold = 0.5  # À ajuster selon vos besoins
+        threshold = 0.5
         binary_map = detect_targets(rdm_with_noise, threshold)
 
         #Estimer les probabilités de fausse alarme et de détection
@@ -212,25 +212,28 @@ for scenario in range(num_scenarios):
 # Convertir les listes en tableaux numpy pour faciliter la manipulation
 probability_false_alarm_array = np.array(probability_false_alarm_list)
 probability_miss_detection_array = np.array(probability_miss_detection_list)
+# Créer une nouvelle figure
+plt.figure(figsize=(12, 6))
 
 # Afficher la RDM sans bruit combinée
-K_vals, N_vals = np.meshgrid(np.arange(N), np.arange(K))
+plt.subplot(1, 2, 1)
 plt.imshow(np.mean(np.real(rdm_without_noise_combined), axis=2), extent=[0, K, 0, N], cmap='viridis', origin='lower')
 plt.xlabel('K')
 plt.ylabel('N')
 plt.title('RDM sans bruit combinée pour les 5 scénarios')
 plt.colorbar()
-plt.show(block=False)
-plt.savefig("RDM_Without_Noise_Combined.png")
 
 # Afficher la RDM avec bruit combinée (pour une valeur de SNR spécifique)
+plt.subplot(1, 2, 2)
 plt.imshow(np.mean(np.real(rdm_with_noise_combined[:, :, :, :]), axis=2), extent=[0, K, 0, N], cmap='viridis', origin='lower')
 plt.xlabel('K')
 plt.ylabel('N')
 plt.title('RDM avec bruit combinée (SNR 10 dB) pour les 5 scénarios')
 plt.colorbar()
+plt.tight_layout()
 plt.show(block=False)
-plt.savefig("RDM_With_Noise_Combined.png")
+plt.savefig("RDM_WITHOUT_WITH.png")
+
 
 # Plot 2: Proba des fausses alarmes et des mauvaises détections avec les 3 valeurs sur le graphe
 plt.subplot(122)
