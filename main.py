@@ -31,7 +31,8 @@ plt.ylabel('Partie réelle')
 plt.title('Signal en bande de base (Partie réelle)')
 plt.xlim(0, 2 * T)
 plt.grid()
-#plt.show()
+plt.show(block=False)
+plt.savefig("BNDBR.png")
 
 # Visualiser la partie imaginaire du signal en bande de base
 #plt.figure(2)
@@ -41,7 +42,8 @@ plt.ylabel('Partie imaginaire')
 plt.title('Signal en bande de base (Partie imaginaire)')
 plt.grid()
 plt.xlim(0, 2 * T)
-#plt.show()
+plt.show(block=False)
+plt.savefig("BNDBI.png")
 
 # Calcul de la transformée de Fourier
 fft_result = np.fft.fftshift(np.fft.fft(baseband_signal))
@@ -59,7 +61,8 @@ plt.xlabel('Fréquence (Hz)')
 plt.ylabel('Amplitude')
 plt.title('Spectre de fréquence du signal en bande de base')
 plt.grid()
-plt.show()
+plt.show(block=False)
+plt.savefig("SPCTR.png")
 
 # Trouver la fréquence à la moitié de l'amplitude maximale pour calculer la largeur de bande
 max_amplitude = np.max(amplitude)
@@ -143,8 +146,8 @@ def estimate_probabilities(binary_map, true_targets):
 num_scenarios = 5
 
 # Initialisation des variables pour stocker les résultats (STEP 2 et STEP 3)
-rdm_with_noise_list = []
-rdm_without_noise_list = []
+rdm_with_noise_combined = np.zeros((K, N, num_scenarios, len(snr_values)), dtype=complex)
+rdm_without_noise_combined = np.zeros((K, N, num_scenarios), dtype=complex)
 probability_false_alarm_list = []
 probability_miss_detection_list = []
 roc_data=[]
@@ -172,43 +175,23 @@ for scenario in range(num_scenarios):
 
     # Traitement radar
     received_signal_blocks = received_signal.reshape(K, -1)
-    range_doppler_map = np.fft.fftshift(np.fft.fft(received_signal_blocks, axis=1), axes=1)
-    range_doppler_map = np.fft.fftshift(np.fft.fft(range_doppler_map, axis=0), axes=0)
+    range_doppler_map_without_noise = np.fft.fftshift(np.fft.fft(received_signal_blocks, axis=1), axes=1)
+    range_doppler_map_without_noise = np.fft.fftshift(np.fft.fft(range_doppler_map_without_noise, axis=0), axes=0)
 
-    # Affichage RDM
-    fig = plt.figure(figsize=(15, 5))
-
-    # Plot RDM sans bruit 3D
-    ax = fig.add_subplot(121, projection='3d')
-    K_vals, N_vals = np.meshgrid(np.arange(N), np.arange(K))
-    ax.plot_surface(N_vals, K_vals, np.abs(range_doppler_map), cmap='viridis', edgecolor='k')
-    ax.set_xlabel('N')
-    ax.set_ylabel('K')
-    ax.set_zlabel('Amplitude')
-    ax.set_title(f'RDM 3D - Scénario {scenario + 1}')
-
-    # Plot RDM sans bruit 2D
-    ax = fig.add_subplot(122)
-    im = ax.imshow(np.abs(range_doppler_map), extent=[0, K, 0, N], cmap='viridis', origin='lower')
-    ax.set_xlabel('K')
-    ax.set_ylabel('N')
-    ax.set_title(f'RDM 2D - Scénario {scenario + 1}')
-    plt.colorbar(im)
-    plt.tight_layout()
-    plt.show()
+    # Ajouter la RDM sans bruit à la liste
+    rdm_without_noise_combined[:, :, scenario] = np.abs(range_doppler_map_without_noise)
 
     ###### Step 3 #######
     # Répéter l'analyse pour chaque valeur de SNR
-    for snr in snr_values:
+    for snr_index, snr in enumerate(snr_values):
         # Utilisation du signal reçu simulé à partir de l'étape 2
         rdm_with_targets = np.abs(np.fft.fftshift(np.fft.fft(received_signal_scenario)))
 
         #Ajouter du bruit au signal RDM
         rdm_with_noise = add_noise(rdm_with_targets, snr)
 
-        # Stocker les résultats pour le scénario actuel et la valeur de SNR
-        rdm_with_noise_list.append(rdm_with_noise)
-        rdm_without_noise_list.append(rdm_with_targets)
+        # Ajouter la RDM avec bruit à la matrice combinée
+        rdm_with_noise_combined[:, :, scenario, snr_index] = rdm_with_noise.reshape((K, N))
 
         #Appliquer un seuil pour détecter les cibles
         threshold = 0.5  # À ajuster selon vos besoins
@@ -227,10 +210,27 @@ for scenario in range(num_scenarios):
         roc_data.append((fpr, tpr, roc_auc, scenario, snr))
 
 # Convertir les listes en tableaux numpy pour faciliter la manipulation
-rdm_with_noise_array = np.array(rdm_with_noise_list)
-rdm_without_noise_array = np.array(rdm_without_noise_list)
 probability_false_alarm_array = np.array(probability_false_alarm_list)
 probability_miss_detection_array = np.array(probability_miss_detection_list)
+
+# Afficher la RDM sans bruit combinée
+K_vals, N_vals = np.meshgrid(np.arange(N), np.arange(K))
+plt.imshow(np.mean(np.real(rdm_without_noise_combined), axis=2), extent=[0, K, 0, N], cmap='viridis', origin='lower')
+plt.xlabel('K')
+plt.ylabel('N')
+plt.title('RDM sans bruit combinée pour les 5 scénarios')
+plt.colorbar()
+plt.show(block=False)
+plt.savefig("RDM_Without_Noise_Combined.png")
+
+# Afficher la RDM avec bruit combinée (pour une valeur de SNR spécifique)
+plt.imshow(np.mean(np.real(rdm_with_noise_combined[:, :, :, :]), axis=2), extent=[0, K, 0, N], cmap='viridis', origin='lower')
+plt.xlabel('K')
+plt.ylabel('N')
+plt.title('RDM avec bruit combinée (SNR 10 dB) pour les 5 scénarios')
+plt.colorbar()
+plt.show(block=False)
+plt.savefig("RDM_With_Noise_Combined.png")
 
 # Plot 2: Proba des fausses alarmes et des mauvaises détections avec les 3 valeurs sur le graphe
 plt.subplot(122)
@@ -242,7 +242,8 @@ plt.title('Probabilité de fausse alarme et de mauvaise détection')
 plt.xlabel('Probabilité de fausse alarme')
 plt.ylabel('Probabilité de mauvaise détection')
 plt.legend()
-plt.show()
+plt.show(block=False)
+plt.savefig("PROBA.png")
 
 # Plot de la courbe ROC
 plt.figure(figsize=(10, 7))
@@ -256,4 +257,5 @@ plt.xlabel('Taux de faux positifs (FPR)')
 plt.ylabel('Taux de vrais positifs (TPR)')
 plt.title('Courbe ROC pour différents scénarios')
 plt.legend(loc="lower right")
-plt.show()
+plt.show(block=False)
+plt.savefig("ROC.png")
