@@ -88,7 +88,7 @@ K = 256  # Taille FFT rapide en dimension lente (slow-time)
 guard_samples = 5  # Nombre d'échantillons de garde
 c = 299792458.0  # Vitesse de la lumière en m/s
 wavelength = c / F_c  # Longueur d'onde
-snr_values = [10, 15, 20]  # Valeurs de SNR à évaluer
+snr_values = [2,10,20]  # Valeurs de SNR à évaluer
 
 
 ###### Fonction Step 2 #######
@@ -198,7 +198,7 @@ for scenario in range(num_scenarios):
         binary_map = detect_targets(rdm_with_noise, threshold)
 
         #Estimer les probabilités de fausse alarme et de détection
-        true_targets = rdm_with_targets > 0.5
+        true_targets = rdm_with_targets > threshold
         probability_false_alarm, probability_miss_detection = estimate_probabilities(binary_map, true_targets)
 
         # Stocker les résultats pour le scénario actuel et la valeur de SNR et des ROC
@@ -213,6 +213,7 @@ for scenario in range(num_scenarios):
 probability_false_alarm_array = np.array(probability_false_alarm_list)
 probability_miss_detection_array = np.array(probability_miss_detection_list)
 # Créer une nouvelle figure
+
 plt.figure(figsize=(12, 6))
 
 # Afficher la RDM sans bruit combinée
@@ -223,12 +224,13 @@ plt.ylabel('N')
 plt.title('RDM sans bruit combinée pour les 5 scénarios')
 plt.colorbar()
 
-# Afficher la RDM avec bruit combinée (pour une valeur de SNR spécifique)
+
+# Afficher la RDM avec bruit combinée
 plt.subplot(1, 2, 2)
 plt.imshow(np.mean(np.real(rdm_with_noise_combined[:, :, :, :]), axis=2), extent=[0, K, 0, N], cmap='viridis', origin='lower')
 plt.xlabel('K')
 plt.ylabel('N')
-plt.title('RDM avec bruit combinée (SNR 10 dB) pour les 5 scénarios')
+plt.title('RDM avec bruit combinée pour les 5 scénarios')
 plt.colorbar()
 plt.tight_layout()
 plt.show(block=False)
@@ -236,7 +238,7 @@ plt.savefig("RDM_WITHOUT_WITH.png")
 
 
 # Plot 2: Proba des fausses alarmes et des mauvaises détections avec les 3 valeurs sur le graphe
-plt.subplot(122)
+plt.figure(figsize=(8, 6))
 for i, snr in enumerate(snr_values):
     plt.scatter(probability_false_alarm_array[i::len(snr_values)], probability_miss_detection_array[i::len(snr_values)],
                 label=f'SNR {snr} dB')
