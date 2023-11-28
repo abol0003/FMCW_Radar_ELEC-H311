@@ -88,7 +88,7 @@ K = 256  # Taille FFT rapide en dimension lente (slow-time)
 guard_samples = 5  # Nombre d'échantillons de garde
 c = 299792458.0  # Vitesse de la lumière en m/s
 wavelength = c / F_c  # Longueur d'onde
-snr_values = [2, 10, 20]  # Valeurs de SNR à évaluer
+snr_values = [2, 10, 50]  # Valeurs de SNR à évaluer
 
 
 ###### Fonction Step 2 #######
@@ -112,16 +112,25 @@ def simulate_multi_target_channel(t, fmcw_signal, target_range, target_velocity)
 
 ###### Fonction Step 3 #######
 # Fonction pour simuler le bruit blanc gaussien
-def simulate_gaussian_noise(shape, snr):
-    signal_power = 1.0 # whe have to calcule the module square of the amplitude
+def simulate_gaussian_noise(shape, snr, signal_amplitude):
+    # Calculer la puissance du signal
+    signal_power = np.abs(signal_amplitude) ** 2
+
+    # Calculer la puissance du bruit
     noise_power = signal_power / (10 ** (snr / 10.0))
-    noise = np.sqrt(noise_power / 2) * (np.random.randn(*shape) + 1j * np.random.randn(*shape))
+
+    # Générer le bruit gaussien complexe avec la bonne puissance
+    noise_real = np.sqrt(noise_power / 2) * np.random.normal(0, 1, size=shape)
+    noise_imag = np.sqrt(noise_power / 2) * np.random.normal(0, 1, size=shape)
+
+    # Retourner le bruit complexe
+    noise = noise_real+1j*noise_imag
     return noise
 
 
 # Fonction pour ajouter du bruit à un signal
 def add_noise(signal, snr):
-    noise = simulate_gaussian_noise(signal.shape, snr)
+    noise = simulate_gaussian_noise(signal.shape, snr, signal_amplitude=np.max(rdm_with_targets))
     noisy_signal = signal + noise
     return noisy_signal
 
@@ -194,7 +203,7 @@ for scenario in range(num_scenarios):
         rdm_with_noise_combined[:, :, scenario, snr_index] = rdm_with_noise.reshape((K, N))
 
         #Appliquer un seuil pour détecter les cibles
-        threshold = 0.001
+        threshold = 0.21
         binary_map = detect_targets(rdm_with_noise, threshold)
 
         #Estimer les probabilités de fausse alarme et de détection
@@ -212,25 +221,22 @@ for scenario in range(num_scenarios):
 # Convertir les listes en tableaux numpy pour faciliter la manipulation
 probability_false_alarm_array = np.array(probability_false_alarm_list)
 probability_miss_detection_array = np.array(probability_miss_detection_list)
-# Créer une nouvelle figure
 
-plt.figure(figsize=(12, 6))
 
 # Afficher la RDM sans bruit combinée
 plt.subplot(1, 2, 1)
-plt.imshow(np.mean(np.real(rdm_without_noise_combined), axis=2), extent=[0, K, 0, N], cmap='viridis', origin='lower')
+plt.imshow(np.mean(np.real(rdm_without_noise_combined), axis=2), extent=[0, K, 0, N], cmap='viridis', origin='lower', vmax=1.0)
 plt.xlabel('K')
 plt.ylabel('N')
-plt.title('RDM sans bruit combinée pour les 5 scénarios')
+plt.title(f'RDM sans bruit combinée pour les {num_scenarios} scénarios')
 plt.colorbar()
-
 
 # Afficher la RDM avec bruit combinée
 plt.subplot(1, 2, 2)
-plt.imshow(np.mean(np.real(rdm_with_noise_combined), axis=2), extent=[0, K, 0, N],cmap='viridis', origin='lower')
+plt.imshow(np.mean(np.real(rdm_with_noise_combined), axis=2), extent=[0, K, 0, N], cmap='viridis', origin='lower', vmax=1.0)
 plt.xlabel('K')
 plt.ylabel('N')
-plt.title('RDM avec bruit combinée pour les 5 scénarios')
+plt.title(f'RDM avec bruit combinée pour les {num_scenarios} scénarios')
 plt.colorbar()
 plt.tight_layout()
 plt.show(block=False)
@@ -257,10 +263,10 @@ for i, (fpr, tpr, roc_auc, scenario, snr) in enumerate(roc_data):
 
 plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
 plt.xlim([0.0, 1.0])
-plt.ylim([0.0, 1.05])
-plt.xlabel('Taux de faux positifs (FPR)')
-plt.ylabel('Taux de vrais positifs (TPR)')
-plt.title('Courbe ROC pour différents scénarios')
+plt.ylim([0.0, 1.0])
+plt.ylabel('Taux de faux positifs (FPR)')
+plt.xlabel('Taux de vrais positifs (TPR)')
+plt.title(f'Courbe ROC pour les {num_scenarios} différents scénarios')
 plt.legend(loc="lower right")
 plt.show(block=False)
 plt.savefig("ROC.png")
