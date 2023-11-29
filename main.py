@@ -152,7 +152,7 @@ def estimate_probabilities(binary_map, true_targets):
 
 ###### Step 2 #######
 # Nombre de scénarios à simuler (chacun avec une cible)
-num_scenarios = 3
+num_scenarios = 1
 
 # Initialisation des variables pour stocker les résultats (STEP 2 et STEP 3)
 rdm_with_noise_combined = np.zeros((K, N, num_scenarios, len(snr_values)), dtype=complex)
@@ -203,7 +203,7 @@ for scenario in range(num_scenarios):
         rdm_with_noise_combined[:, :, scenario, snr_index] = rdm_with_noise.reshape((K, N))
 
         #Appliquer un seuil pour détecter les cibles
-        threshold = 0.21
+        threshold = 0.1
         binary_map = detect_targets(rdm_with_noise, threshold)
 
         #Estimer les probabilités de fausse alarme et de détection
