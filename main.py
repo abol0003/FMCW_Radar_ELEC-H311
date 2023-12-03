@@ -210,7 +210,7 @@ for scenario in range(num_scenarios):
         true_targets = rdm_with_targets > threshold
         probability_false_alarm, probability_miss_detection = estimate_probabilities(binary_map, true_targets)
 
-        # Stocker les résultats pour le scénario actuel et la valeur de SNR et des ROC
+
         probability_false_alarm_list.append(probability_false_alarm)
         probability_miss_detection_list.append(probability_miss_detection)
 

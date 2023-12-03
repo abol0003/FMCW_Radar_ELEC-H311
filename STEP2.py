@@ -1,225 +1,114 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import roc_curve, auc
 
-# Paramètres du chirp
-B = 200e6  # Plage de fréquence en Hz
-T = 0.2e-3  # Durée du chirp en secondes
-F = 512e6  # Fréquence d'échantillonnage en Hz
-num_samples = 2 ** 18  # Nombre d'échantillons
+# Définition des paramètres
+B = 200e6
+T = 0.1e-3
+F_s = 2e6
+F = 512e6
+N_s = 2**18
+F_c = 24e9
+N = 512
+K = 256
+N_s_off = 5
+R_max = 20
+V_max = 2
+c = 3e8
+N_t = 10
 
-# Calcul de la pente β
-beta = B / T
+Beta = B / T
+Tau_max = 2 * R_max / c
+Delta_R_0 = c / (2 * B)
+Delta_v = c / (2 * K * T * F_c)
 
-# Créez un vecteur de temps couvrant la durée du chirp
-t = np.linspace(0, T, num_samples, endpoint=False)
+# Initialisation des paramètres step2
+t_emission_tot = []
+Fi_t_tot = []
+t_reception_tot_vect = []
+t_reception_tot = np.zeros((N_t, K * N))
+t_emission_mat = np.zeros((K, N))
+t_reception_mat = np.zeros((K, N))
+Fi_t_mat = np.zeros((K, N))
+matrices_t_reception = [np.zeros((K, N)) for _ in range(N_t)]
+Tot_RDM_fig_4 = np.zeros((N, K))
+Tot_RDM_eq_16 = np.zeros((N, K))
 
-# Calcul de la fréquence instantanée
-fi = beta * t
-
-# Calcul de la phase instantanée
-phi_i = 2 * np.pi * np.cumsum(fi) * (1 / F)
-
-# Générez le signal en bande de base e^{jϕi(t)}
-baseband_signal = np.exp(1j * phi_i)
-
-
-# Calcul de la transformée de Fourier
-fft_result = np.fft.fftshift(np.fft.fft(baseband_signal))
-
-# Calcul des fréquences associées aux échantillons de la transformée de Fourier
-freq_range = np.fft.fftshift(np.fft.fftfreq(num_samples, 1 / F))
-
-# Calcul de l'amplitude du spectre de fréquence
-amplitude = np.abs(fft_result)
-
-
-# Trouver la fréquence à la moitié de l'amplitude maximale pour calculer la largeur de bande
-max_amplitude = np.max(amplitude)
-half_max_amplitude = max_amplitude / 2
-
-# Trouver les indices où l'amplitude est proche de la moitié de l'amplitude maximale
-indices = np.where(amplitude >= half_max_amplitude)
-
-# Les fréquences correspondant à ces indices donnent la largeur de bande
-bandwidth = freq_range[indices[-1]] - freq_range[indices[0]]
-bandwidth_value = bandwidth[0]  # Extraction de la valeur de la largeur de bande
-# print("Largeur de bande du signal FMCW en bande de base : {:.2f} Hz".format(bandwidth_value))
+# Génération des retards et vitesses aléatoires
+random_delays = np.random.rand(N_t) *Tau_max
+random_speeds = np.random.rand(N_t) * V_max
+R_0 = (c * random_delays) / 2
+Kappa = np.exp(4 * np.pi * 1j * R_0 * F_c / c) * np.exp(-2 * np.pi * 1j * Beta**2 * R_0**2 / c**2)
+F_d = 2 * random_speeds * F_c / c
+F_b = 2 * R_0 * Beta / c
 
 
-# Constantes STEP 2 ET STEP 3
-B = 200e6  # Plage de fréquence en Hz
-T_chirp = 1 / B
-F_c = 24e9  # Fréquence porteuse en Hz (24 GHz)
-Fs_radar = 2e6  # Fréquence d'échantillonnage radar en Hz (2 MHz)
-F_simulation = 512e6  # Fréquence d'échantillonnage de la simulation en Hz (512 MHz)
-N = 512  # Taille FFT rapide en dimension rapide (fast-time)
-K = 256  # Taille FFT rapide en dimension lente (slow-time)
-guard_samples = 5  # Nombre d'échantillons de garde
-c = 299792458.0  # Vitesse de la lumière en m/s
-wavelength = c / F_c  # Longueur d'onde
-snr_values = [2, 10, 50]  # Valeurs de SNR à évaluer
+from fct_step2 import *
+from fct_step3 import *
+
+# Étape 2: Traitement radar
+
+# Pour la tâche 1 et 2 avec plusieurs cibles (=> plusieurs temps de réception)
+
+for r in range(N_t):
+    for k in range(K):
+        t_reception = np.arange(random_delays[r], T + random_delays[r], T / (N + N_s_off - 1))
+        t_reception = t_reception[:N]
+        t_reception_mat[k, :] = t_reception
+    matrices_t_reception[r] = t_reception_mat
+
+for k in range(K):
+    t_emission = np.arange(0, T, T / (N + N_s_off - 1))
+    F_i_t = Beta * t_emission
+    t_emission = t_emission[:N]
+    F_i_t = F_i_t[:N]
+    t_emission_mat[k, :] = t_emission
+    Fi_t_mat[k, :] = F_i_t
+
+for k in range(K):
+    F_i_t = Fi_t_mat[k, :]
+    t_emission = t_emission_mat[k, :]
+    Fi_t_tot = np.concatenate((Fi_t_tot, F_i_t))
+    t_emission_tot = np.concatenate((t_emission_tot, t_emission + (k - 1) * T))
+
+for r in range(N_t):
+    current_t_reception_mat = matrices_t_reception[r]
+    for k in range(K):
+        t_reception = current_t_reception_mat[k, :]
+        t_reception_tot_vect = np.concatenate((t_reception_tot_vect, t_reception + (k - 1) * T))
+    t_reception_tot[r, :] = t_reception_tot_vect
+    t_reception_tot_vect = []
 
 
-###### Fonction Step 2 #######
+Tot_RDM_fig_4 = np.zeros((N, K))
+Tot_RDM_eq_16 = np.zeros((N, K))
 
-# Fonction pour calculer N et K en fonction de la résolution en portée et en vitesse
-def calculate_N_K(T_chirp, resolution_range, resolution_velocity):
-    N = int((c * T_chirp) / (2 * resolution_range))
-    K = int(resolution_velocity * T_chirp)
-    return N, K
-# Fonction pour générer le signal FMCW
-def generate_fmcw_signal(T_chirp, num_chirps, N):
-    t_chirp = np.linspace(0, T_chirp, N, endpoint=False)
-    chirp_signal = np.exp(1j * np.pi * beta * t_chirp ** 2) * np.exp(1j * 2 * np.pi * F_c * t_chirp)
-    fmcw_signal = np.tile(chirp_signal, num_chirps).reshape((num_chirps * N,))
-    t_total = num_chirps * T_chirp
-    t = np.linspace(0, t_total, num_chirps * N, endpoint=False)
+for r in range(N_t):
+    RDM_fig_4, RDM_eq_16 = get_RDM_test(K, N, T, c, F_c, Beta, t_emission_mat, random_speeds[r], random_delays[r], F_b[r], F_d[r], R_0[r], Kappa[r])
+    Tot_RDM_fig_4 += RDM_fig_4
+    Tot_RDM_eq_16 += RDM_eq_16
 
-    return t, fmcw_signal
+# Représentation 2D avec des couleurs pour l'amplitude
 
+plt.figure(figsize=(16, 6))
 
-# Fonction pour simuler l'impact du canal sur le signal FMCW (multi-cible)
-def simulate_multi_target_channel(t, fmcw_signal, target_range, target_velocity):
-    delay_samples = int(target_range * Fs_radar / c)
-    doppler_shift = target_velocity * (F_c / c)
-    received_signal = np.roll(fmcw_signal, delay_samples) * np.exp(1j * 2 * np.pi * doppler_shift * t)
-    return received_signal
+# Sous-plot 1 pour Tot_RDM_fig_4
+plt.subplot(1, 2, 1)
+plt.imshow(Tot_RDM_fig_4, cmap='jet', aspect='auto', extent=(0, K, N, 0))
+plt.colorbar(label='Amplitude')
+plt.xlabel('Indice K')
+plt.ylabel('Indice N')
+plt.title('Amplitude basée sur Figure 4')
 
-def compute_range_doppler_map(received_signal, N, K):
-    # Assurez-vous que received_signal est un tableau 2D
-    received_signal = received_signal.reshape((K, N))
+# Sous-plot 2 pour Tot_RDM_eq_16
+plt.subplot(1, 2, 2)
+plt.imshow(Tot_RDM_eq_16, cmap='jet', aspect='auto', extent=(0, K, N, 0))
+plt.colorbar(label='Amplitude')
+plt.xlabel('Indice K')
+plt.ylabel('Indice N')
+plt.title('Amplitude basée sur Equation 16')
 
-    # Première étape : FFT sur les colonnes (fréquences de battement)
-    fft_columns = np.fft.fft(received_signal, axis=1)
-
-    # Deuxième étape : FFT sur les lignes (fréquences de Doppler)
-    range_doppler_map = np.fft.fft(fft_columns, axis=0)
-
-    return range_doppler_map
-
-
-
-
-###### Fonction Step 3 #######
-# Fonction pour simuler le bruit blanc gaussien
-def simulate_gaussian_noise(shape, snr, signal_amplitude):
-    # Calculer la puissance du signal
-    signal_power = np.abs(signal_amplitude) ** 2
-
-    # Calculer la puissance du bruit
-    noise_power = signal_power / (10 ** (snr / 10.0))
-
-    # Générer le bruit gaussien complexe avec la bonne puissance
-    noise_real = np.sqrt(noise_power / 2) * np.random.normal(0, 1, size=shape)
-    noise_imag = np.sqrt(noise_power / 2) * np.random.normal(0, 1, size=shape)
-
-    # Retourner le bruit complexe
-    noise = noise_real+1j*noise_imag
-    return noise
-
-
-# Fonction pour ajouter du bruit à un signal
-def add_noise(signal, snr):
-    noise = simulate_gaussian_noise(signal.shape, snr, signal_amplitude=np.max(rdm_with_targets))
-    noisy_signal = signal + noise
-    return noisy_signal
-
-
-# Fonction pour détecter les cibles dans la RDM en utilisant un seuil
-def detect_targets(rdm, threshold):
-    binary_map = rdm > threshold
-    return binary_map
-
-
-# Fonction pour estimer la probabilité de fausse alarme et de détection
-def estimate_probabilities(binary_map, true_targets):
-    false_alarm_map = binary_map & ~true_targets
-    miss_map = ~binary_map & true_targets
-    probability_false_alarm = np.sum(false_alarm_map) / np.sum(~true_targets)
-    probability_miss_detection = np.sum(miss_map) / np.sum(true_targets)
-    return probability_false_alarm, probability_miss_detection
-
-
-###### Step 2 #######
-# Nombre de scénarios à simuler (chacun avec une cible)
-num_scenarios = 3
-
-# Initialisation des variables pour stocker les résultats (STEP 2 et STEP 3)
-rdm_with_noise_combined = np.zeros((K, N, num_scenarios, len(snr_values)), dtype=complex)
-rdm_without_noise_combined = np.zeros((K, N, num_scenarios), dtype=complex)
-probability_false_alarm_list = []
-probability_miss_detection_list = []
-roc_data=[]
-
-plt.figure(figsize=(15, 10))
-
-for scenario in range(num_scenarios):
-    np.random.seed()
-
-    # Générer une cible avec une portée et une vitesse aléatoires
-    target_range = np.random.uniform(0, 20)  # Portée maximale en m
-    target_velocity = np.random.uniform(0, 2)  # Vitesse maximale en m/s
-
-    print(f"Scénario {scenario + 1} - Paramètres de la cible :")
-    print(f"Cible {scenario+1} - Portée = {target_range:.2f} m, Vitesse = {target_velocity:.2f} m/s")
-
-    # Étape 1 : Générer le signal FMCW
-    # Étape 1 : Générer le signal FMCW
-    t, fmcw_signal = generate_fmcw_signal(T_chirp, num_chirps=K, N=N)
-
-    # Simuler l'impact du canal
-    received_signal = simulate_multi_target_channel(t, fmcw_signal, target_range, target_velocity)
-
-    # Stocker les signaux reçu pour STEP 3
-    received_signal_scenario = received_signal.copy()
-
-    # Calcul de la range-Doppler map
-    range_doppler_map_without_noise = compute_range_doppler_map(received_signal_scenario, N, K)
-
-    # Ajouter la RDM sans bruit à la liste
-    rdm_without_noise_combined[:, :, scenario] = np.abs(range_doppler_map_without_noise)
-
-    ###### Step 3 #######
-    # Répéter l'analyse pour chaque valeur de SNR
-    for snr_index, snr in enumerate(snr_values):
-        # Utilisation du signal reçu simulé à partir de l'étape 2
-        rdm_with_targets = np.abs(np.fft.fftshift(np.fft.fft(received_signal_scenario)))
-
-        #Ajouter du bruit au signal RDM
-        rdm_with_noise = add_noise(rdm_with_targets, snr)
-
-        # Ajouter la RDM avec bruit à la matrice combinée
-        rdm_with_noise_combined[:, :, scenario, snr_index] = rdm_with_noise.reshape((K, N))
-
-        #Appliquer un seuil pour détecter les cibles
-        threshold = 0.1
-        binary_map = detect_targets(rdm_with_noise, threshold)
-
-        #Estimer les probabilités de fausse alarme et de détection
-        true_targets = rdm_with_targets > threshold
-        probability_false_alarm, probability_miss_detection = estimate_probabilities(binary_map, true_targets)
-
-        # Stocker les résultats pour le scénario actuel et la valeur de SNR et des ROC
-        probability_false_alarm_list.append(probability_false_alarm)
-        probability_miss_detection_list.append(probability_miss_detection)
-
-        fpr, tpr, thresholds = roc_curve(true_targets, np.abs(rdm_with_noise))
-        roc_auc = auc(fpr, tpr)
-        roc_data.append((fpr, tpr, roc_auc, scenario, snr))
-
-# Convertir les listes en tableaux numpy pour faciliter la manipulation
-probability_false_alarm_array = np.array(probability_false_alarm_list)
-probability_miss_detection_array = np.array(probability_miss_detection_list)
-
-# Afficher la range-Doppler map combinée
-plt.figure(figsize=(10, 5))
-plt.imshow(np.abs(np.mean(rdm_without_noise_combined, axis=2)), extent=[0, N, 0, K], cmap='viridis', origin='lower', vmin=0, vmax=(np.max(np.abs(rdm_without_noise_combined))/10**5))
-plt.ylabel('N (Fast Time Index)')
-plt.xlabel('K (Slow Time Index)')
-plt.title(f'Range-Doppler Map combinée pour les {num_scenarios} scénarios')
-plt.colorbar()
 plt.tight_layout()
-plt.show(block=False)
-plt.savefig("RANGE_DOPPLER_MAP.png")
+plt.show()
 
+
+plt.show()
