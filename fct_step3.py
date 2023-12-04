@@ -12,7 +12,9 @@ def add_awgn(signal, snr_dB):
     signal_power = np.mean(np.abs(signal)**2)
     noise_power = signal_power / snr_linear
     # Générer du bruit gaussien complexe avec la puissance calculée
-    noise = np.sqrt(noise_power / 2) * (np.random.randn(*signal.shape) + 1j * np.random.randn(*signal.shape))
+    real_noise = np.random.randn(*signal.shape)   #np.random.randn(*signal.shape) genere du bruit gaussien
+    imag_noise = np.random.randn(*signal.shape)  # de manière aléatoire de moyenne nulle et ecart type 1
+    noise = np.sqrt(noise_power / 2) * (real_noise + 1j * imag_noise)
     return signal + noise
 
 def get_N_K_ref(K, N, T, c, F_c, Beta, t_emission, random_speed, random_delay, F_b, F_d, R_0, Kappa):

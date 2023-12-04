@@ -195,7 +195,7 @@ plt.savefig("RDM_WITHOUT.png")
 from fct_step3 import *
 
 # variables
-snr_values = [2, 10, 500]  # Valeurs de SNR à évaluer
+snr_values = [1e-3, 10, 500]  # Valeurs de SNR à évaluer
 thresolds = 1e-5 # Seuil pour la détection
 
 # Initialisation des matrices totales
@@ -245,23 +245,22 @@ plt.title(f'Courbe ROC pour les différents scénarios')
 plt.legend(loc="lower right")
 plt.savefig("ROC.png")  # Sauvegarde de l'image
 
-
 # Comparaison des RDM avec bruit et sans bruit pour Equation 16
 plt.figure(figsize=(16, 6))
+vl_snr=0
+max_amplitude = max(np.max(rdm_without_noise), np.max(RDM_wn_16_snr[vl_snr]))
 
 # Sous-plot 1 pour RDM sans bruit basée sur Equation 16
 plt.subplot(1, 2, 1)
-plt.imshow(rdm_without_noise, cmap='jet', aspect='auto', extent=(0, K, N, 0))
+plt.imshow(np.abs(rdm_without_noise), cmap='jet', aspect='auto', extent=(0, K, N, 0), vmax=max_amplitude)
 plt.colorbar(label='Amplitude')
 plt.xlabel('Indice K')
 plt.ylabel('Indice N')
 plt.title('RDM sans bruit ')
 
 # Sous-plot 2 pour RDM avec bruit
-vl_snr=2
 plt.subplot(1, 2, 2)
-plt.imshow(RDM_wn_16_snr[vl_snr], cmap='jet', aspect='auto',
-           extent=(0, K, N, 0))  # Change [0] avec l'indice de la valeur de SNR souhaitée
+plt.imshow(np.abs(RDM_wn_16_snr[vl_snr]), cmap='jet', aspect='auto', extent=(0, K, N, 0), vmax= max_amplitude)  # Change [0] avec l'indice de la valeur de SNR souhaitée
 plt.colorbar(label='Amplitude')
 plt.xlabel('Indice K')
 plt.ylabel('Indice N')
@@ -269,4 +268,4 @@ plt.title(f'RDM avec bruit (SNR={snr_values[vl_snr]} dB) ')
 plt.tight_layout()
 plt.show(block=False)
 plt.savefig("RDM_WITHOUT_WITH.png")
-
+plt.show()
