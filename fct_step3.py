@@ -11,11 +11,15 @@ def add_awgn(signal, snr_dB):
     snr_linear = 10**(snr_dB / 10)
     signal_power = np.mean(np.abs(signal)**2)
     noise_power = signal_power / snr_linear
+    # Générer du bruit gaussien complexe avec la puissance calculée
     noise = np.sqrt(noise_power / 2) * (np.random.randn(*signal.shape) + 1j * np.random.randn(*signal.shape))
     return signal + noise
 
 def get_N_K_ref(K, N, T, c, F_c, Beta, t_emission, random_speed, random_delay, F_b, F_d, R_0, Kappa):
-    # Effectuer tous les mélanges et le calcul des signaux différents
+    """
+        Génère les signaux radar pour chaque instant de temps et chaque échantillon de fréquence Doppler.
+    :return: Deux matrices N_K_fig_4 et N_K_eq_16 qui représentent les signaux générés pour chaque méthode.
+    """
     K_N_fig_4 = np.zeros((K, N), dtype=complex)  # Utilisation de la figure 4 dans les principes du radar FMCW
     K_N_eq_16 = np.zeros((K, N), dtype=complex)  # Utilisation de l'équation 16 dans les principes du radar FMCW
 
@@ -33,6 +37,12 @@ import numpy as np
 
 
 def get_RDM_wn(N_K):
+    """
+       Calcule la matrice de distance relative (RDM) en utilisant une transformation de Fourier.
+
+       :param N_K: Matrice des signaux générés pour chaque échantillon de fréquence Doppler et chaque instant de temps.
+       :return: La matrice de distance relative (RDM) obtenue par FFT 2D.
+       """
     range_K_eq_16 = np.abs(np.fft.fftshift(np.fft.fft(N_K, axis=0)))  # FFT over each column as a vector
     RDM_eq_16 = np.abs(np.fft.fftshift(np.fft.fft(range_K_eq_16, axis=1)))  # FFT over each row
     RDM_wn = np.abs(np.fft.fft2(N_K))**2  # 2D FFT
