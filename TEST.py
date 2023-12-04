@@ -15,7 +15,7 @@ N_s_off = 5
 R_max = 20
 V_max = 2
 c = 3e8
-N_t = 3  # nombre de cibles
+trgt_numb = 3  # nombre de cibles
 
 Beta = B / T
 Tau_max = 2 * R_max / c
@@ -26,17 +26,17 @@ Delta_v = c / (2 * K * T * F_c)
 t_emission_tot = []
 Fi_t_tot = []
 t_reception_tot_vect = []
-t_reception_tot = np.zeros((N_t, K * N))
+t_reception_tot = np.zeros((trgt_numb, K * N))
 t_emission_mat = np.zeros((K, N))
 t_reception_mat = np.zeros((K, N))
 Fi_t_mat = np.zeros((K, N))
-matrices_t_reception = [np.zeros((K, N)) for _ in range(N_t)]
+matrices_t_reception = [np.zeros((K, N)) for _ in range(trgt_numb)]
 Tot_RDM_fig_4 = np.zeros((N, K))
 Tot_RDM_eq_16 = np.zeros((N, K))
 
 # Génération des retards et vitesses aléatoires
-random_delays = np.random.rand(N_t) * Tau_max
-random_speeds = np.random.rand(N_t) * V_max
+random_delays = np.random.rand(trgt_numb) * Tau_max
+random_speeds = np.random.rand(trgt_numb) * V_max
 R_0 = (c * random_delays) / 2
 Kappa = np.exp(4 * np.pi * 1j * R_0 * F_c / c) * np.exp(-2 * np.pi * 1j * Beta ** 2 * R_0 ** 2 / c ** 2)
 F_d = 2 * random_speeds * F_c / c
@@ -47,7 +47,7 @@ from fct_step2 import *
 
 # Pour la tâche 1 et 2 avec plusieurs cibles (=> plusieurs temps de réception)
 
-for r in range(N_t):
+for r in range(trgt_numb):
     for k in range(K):
         t_reception = np.arange(random_delays[r], T + random_delays[r], T / (N + N_s_off - 1))
         t_reception = t_reception[:N]
@@ -68,7 +68,7 @@ for k in range(K):
     Fi_t_tot = np.concatenate((Fi_t_tot, F_i_t))
     t_emission_tot = np.concatenate((t_emission_tot, t_emission + (k - 1) * T))
 
-for r in range(N_t):
+for r in range(trgt_numb):
     current_t_reception_mat = matrices_t_reception[r]
     for k in range(K):
         t_reception = current_t_reception_mat[k, :]
@@ -79,7 +79,7 @@ for r in range(N_t):
 Tot_RDM_fig_4 = np.zeros((N, K))
 Tot_RDM_eq_16 = np.zeros((N, K))
 
-for r in range(N_t):
+for r in range(trgt_numb):
     RDM_fig_4, RDM_eq_16 = get_RDM_test(K, N, T, c, F_c, Beta, t_emission_mat, random_speeds[r], random_delays[r],
                                         F_b[r], F_d[r], R_0[r], Kappa[r])
     Tot_RDM_fig_4 += RDM_fig_4
@@ -125,7 +125,7 @@ Tot_N_K_fig_4 = np.zeros((N, K), dtype=complex)
 Tot_N_K_eq_16 = np.zeros((N, K), dtype=complex)
 roc_data = []
 # Étape 2 : Calculer la courbe ROC et l'AUC pour chaque scénario et SNR
-for r in range(N_t):
+for r in range(trgt_numb):
     N_K_fig_4, N_K_eq_16 = get_N_K_ref(K, N, T, c, F_c, Beta, t_emission_mat, random_speeds[r], random_delays[r],
                                        F_b[r], F_d[r], R_0[r], Kappa[r])
 
@@ -134,19 +134,21 @@ for r in range(N_t):
     Tot_N_K_eq_16 += N_K_eq_16
 
     for snr in snr_values:
-        N_K_noise_eq_16 = add_awgn(Tot_N_K_eq_16, snr)
-        rdm_wn_16 = get_RDM_wn(N_K_noise_eq_16)
+        #pour le rdm
+        N_K_noise_rdm = add_awgn(Tot_N_K_eq_16, snr) #probleme c'est que on ajoute du bruit à la matrice total mais donc mauvais roc
+        rdm_wn_16 = get_RDM_wn(N_K_noise_rdm)
         RDM_wn_16_snr = [rdm_wn_16.copy() for snr in range(len(snr_values))]
+        #pour le roc
+        N_K_noise_roc = add_awgn(N_K_eq_16, snr)  # probleme c'est que on ajoute du bruit à la matrice total mais donc mauvais roc
+        roc_wn_16 = get_RDM_wn(N_K_noise_roc)
+
 
         # Appliquer un seuil pour détecter les cibles
-        normRDM_Wn = rdm_wn_16 / np.max(rdm_wn_16)
         normRDM_Won = rdm_without_noise / np.max(rdm_without_noise)
-
-        binary_map_wn = detect_targets(normRDM_Wn, thresolds)
         binary_map_won = detect_targets(normRDM_Won, thresolds)
 
         # Étape 2 : Calculer la courbe ROC et l'AUC
-        fpr, tpr, thresholds = roc_curve(binary_map_won.flatten(), np.abs(rdm_wn_16).flatten())
+        fpr, tpr, thresholds = roc_curve(binary_map_won.flatten(), np.abs(roc_wn_16).flatten())
         roc_auc = auc(fpr, tpr)
 
         # Stocker les résultats pour le scénario actuel, la valeur de SNR et le numéro de cible
