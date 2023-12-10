@@ -12,18 +12,18 @@ num_samples = 2 ** 18  # Nombre d'échantillons
 beta = B / T
 
 # Créez un vecteur de temps couvrant la durée du chirp
-t = np.linspace(0, T, num_samples, endpoint=False)
+t = np.arange(0, T, T/num_samples)
 
 # Calcul de la fréquence instantanée
 fi = beta * t
 
 # Calcul de la phase instantanée
-phi_i = 2 * np.pi * np.cumsum(fi) * (1 / F)
+phi_i = beta * np.pi * (t**2)
 
 # Générez le signal en bande de base e^{jϕi(t)}
 baseband_signal = np.exp(1j * phi_i)
 
-# Visualiser la partie réelle du signal en bande de base
+# Afficher la partie réelle du signal en bande de base
 plt.figure(1)
 plt.plot(t, np.real(baseband_signal))
 plt.xlabel('Temps (s)')
@@ -34,7 +34,7 @@ plt.grid()
 plt.show(block=False)
 plt.savefig("BNDBR.png")
 
-# Visualiser la partie imaginaire du signal en bande de base
+# Afficher la partie imaginaire du signal en bande de base
 plt.figure(2)
 plt.plot(t, np.imag(baseband_signal))
 plt.xlabel('Temps (s)')
@@ -49,7 +49,8 @@ plt.savefig("BNDBI.png")
 fft_result = np.fft.fftshift(np.fft.fft(baseband_signal))
 
 # Calcul des fréquences associées aux échantillons de la transformée de Fourier
-freq_range = np.fft.fftshift(np.fft.fftfreq(num_samples, 1 / F))
+freq_range = np.arange(-F/2,F/2,F/num_samples)
+
 
 # Calcul de l'amplitude du spectre de fréquence
 amplitude = np.abs(fft_result)
@@ -58,23 +59,11 @@ amplitude = np.abs(fft_result)
 plt.figure(3)
 plt.plot(freq_range, amplitude)
 plt.xlabel('Fréquence (Hz)')
-plt.ylabel('Amplitude')
+plt.ylabel('|FFT(X)|')
 plt.title('Spectre de fréquence du signal en bande de base')
 plt.grid()
 plt.show(block=False)
 plt.savefig("SPCTR.png")
-
-# Trouver la fréquence à la moitié de l'amplitude maximale pour calculer la largeur de bande
-max_amplitude = np.max(amplitude)
-half_max_amplitude = max_amplitude / 2
-
-# Trouver les indices où l'amplitude est proche de la moitié de l'amplitude maximale
-indices = np.where(amplitude >= half_max_amplitude)
-
-# Les fréquences correspondant à ces indices donnent la largeur de bande
-bandwidth = freq_range[indices[-1]] - freq_range[indices[0]]
-bandwidth_value = bandwidth[0]  # Extraction de la valeur de la largeur de bande
-# print("Largeur de bande du signal FMCW en bande de base : {:.2f} Hz".format(bandwidth_value))
 
 
 ########### STEP2 ############
@@ -90,7 +79,7 @@ guard_samples = 5 # Nombre d'échantillons de garde
 R_max = 20  # Portée maximale en mètres
 V_max = 2   # Vitesse maximale en m/s
 c = 299792458.0  # Vitesse de la lumière en m/s (3e8 m/s)
-trgt_numb = 5  # nombre de cibles
+trgt_numb = 3  # nombre de cibles
 Beta = B / T    # Pente du chirp
 Tau_max = 2 * R_max / c # Temps de propagation maximal
 
@@ -109,7 +98,10 @@ Tot_RDM_eq_16 = np.zeros((N, K))
 
 # Génération des retards et vitesses aléatoires
 random_delays = np.random.rand(trgt_numb) * Tau_max
+target = (random_delays/Tau_max)*R_max # à enlever une fois le rapport terminer
 random_speeds = np.random.rand(trgt_numb) * V_max
+print(target)
+print(random_speeds)
 R_0 = (c * random_delays) / 2
 Kappa = np.exp(4 * np.pi * 1j * R_0 * F_c / c) * np.exp(-2 * np.pi * 1j * Beta ** 2 * R_0 ** 2 / c ** 2)
 F_d = 2 * random_speeds * F_c / c
@@ -195,26 +187,21 @@ plt.savefig("RDM_WITHOUT.png")
 from fct_step3 import *
 
 # variables
-snr_values = [1e-3, 10, 500]  # Valeurs de SNR à évaluer
-thresolds = 1e-5 # Seuil pour la détection
+snr_values = [-60,10,80]  # Valeurs de SNR à évaluer
+thresolds = 3e-6# Seuil pour la détection
 
 # Initialisation des matrices totales
 Tot_N_K_fig_4 = np.zeros((N, K), dtype=complex)
 Tot_N_K_eq_16 = np.zeros((N, K), dtype=complex)
 roc_data = []
+RDM_wn_16_snr=[]
 # Étape 2 : Calculer la courbe ROC et l'AUC et RDM
 for r in range(trgt_numb):
     N_K_fig_4, N_K_eq_16 = get_N_K_ref(K, N, T, c, F_c, Beta, t_emission_mat, random_speeds[r], random_delays[r], F_b[r], F_d[r], R_0[r], Kappa[r])
 
-    # Ajouter les matrices actuelles aux sommes cumulatives
     Tot_N_K_fig_4 += N_K_fig_4
-    Tot_N_K_eq_16 += N_K_eq_16
-
+    Tot_N_K_eq_16 += N_K_eq_16  #pour rdm
     for snr in snr_values:
-        #pour le rdm
-        N_K_noise_rdm = add_awgn(Tot_N_K_eq_16, snr) # Ajouter du bruit blanc gaussien à la matrice totale
-        rdm_wn_16 = get_RDM_wn(N_K_noise_rdm)      # Calculer la RDM avec bruit
-        RDM_wn_16_snr = [rdm_wn_16.copy() for snr in range(len(snr_values))] # Stocker la RDM avec bruit pour chaque valeur de SNR
         #pour le roc
         N_K_noise_roc = add_awgn(N_K_eq_16, snr) # Ajouter du bruit blanc gaussien à la matrice du scenario actuel
         roc_wn_16 = get_RDM_wn(N_K_noise_roc)   # Calculer la RDM avec bruit pour le roc
@@ -231,6 +218,12 @@ for r in range(trgt_numb):
         # Stocker les résultats pour le scénario actuel, la valeur de SNR et le numéro de cible
         roc_data.append((fpr, tpr, roc_auc, r, snr))
 
+for snr in snr_values:
+    # pour le rdm
+    N_K_noise_rdm = add_awgn(Tot_N_K_eq_16, snr)  # Ajouter du bruit blanc gaussien à la matrice totale
+    rdm_wn_16 = get_RDM_wn(N_K_noise_rdm)  # Calculer la RDM avec bruit
+    RDM_wn_16_snr.append(rdm_wn_16.copy()) # Stocker la RDM avec bruit pour chaque valeur de SNR
+
 # Plot de la courbe ROC
 plt.figure(figsize=(10, 7))
 for i, (fpr, tpr, roc_auc, scenario, snr) in enumerate(roc_data):
@@ -239,33 +232,49 @@ for i, (fpr, tpr, roc_auc, scenario, snr) in enumerate(roc_data):
 plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
 plt.xlim([0.0, 1.0])
 plt.ylim([0.0, 1.0])
-plt.ylabel('Taux de faux positifs (FPR)')
-plt.xlabel('Taux de vrais positifs (TPR)')
+plt.xlabel('Taux de faux positifs (FPR)')
+plt.ylabel('Taux de vrais positifs (TPR)')
 plt.title(f'Courbe ROC pour les différents scénarios')
 plt.legend(loc="lower right")
-plt.savefig("ROC.png")  # Sauvegarde de l'image
+plt.savefig("ROC.png")
+
 
 # Comparaison des RDM avec bruit et sans bruit pour Equation 16
 plt.figure(figsize=(16, 6))
 vl_snr=0
-max_amplitude = max(np.max(rdm_without_noise), np.max(RDM_wn_16_snr[vl_snr]))
+max_amplitude = np.max(rdm_without_noise)
+#norm_rdm_without_noise = np.abs(rdm_without_noise) / np.max(np.abs(rdm_without_noise))
+#norm_rdm_with_noise = np.abs(RDM_wn_16_snr[vl_snr]) / np.max(np.abs(rdm_without_noise))  # Changer [vl_snr] avec l'indice de la valeur de SNR souhaitée
+#norm_rdm_other_with_noise = np.abs(RDM_wn_16_snr[len(snr_values)-1]) / np.max(np.abs(rdm_without_noise))  # Changer [vl_snr] avec l'indice de la valeur de SNR souhaitée
+
+
+#vmax_norm = 1.0  # Plage dynamique maximale pour la visualisation normalisée
 
 # Sous-plot 1 pour RDM sans bruit basée sur Equation 16
-plt.subplot(1, 2, 1)
-plt.imshow(np.abs(rdm_without_noise), cmap='jet', aspect='auto', extent=(0, K, N, 0), vmax=max_amplitude)
+plt.subplot(1, 3, 1)
+plt.imshow(rdm_without_noise, cmap='jet', aspect='auto', extent=(0, K, N, 0), vmax=max_amplitude)
 plt.colorbar(label='Amplitude')
 plt.xlabel('Indice K')
 plt.ylabel('Indice N')
 plt.title('RDM sans bruit ')
 
 # Sous-plot 2 pour RDM avec bruit
-plt.subplot(1, 2, 2)
-plt.imshow(np.abs(RDM_wn_16_snr[vl_snr]), cmap='jet', aspect='auto', extent=(0, K, N, 0), vmax= max_amplitude)  # Change [0] avec l'indice de la valeur de SNR souhaitée
+plt.subplot(1, 3, 2)
+plt.imshow(RDM_wn_16_snr[vl_snr], cmap='jet', aspect='auto', extent=(0, K, N, 0), vmax=max_amplitude)
 plt.colorbar(label='Amplitude')
 plt.xlabel('Indice K')
 plt.ylabel('Indice N')
 plt.title(f'RDM avec bruit (SNR={snr_values[vl_snr]} dB) ')
+
+# Sous-plot 3 pour l'autre RDM avec bruit
+plt.subplot(1, 3, 3)
+plt.imshow(RDM_wn_16_snr[len(snr_values)-1], cmap='jet', aspect='auto', extent=(0, K, N, 0), vmax=max_amplitude)
+plt.colorbar(label='Amplitude')
+plt.xlabel('Indice K')
+plt.ylabel('Indice N')
+plt.title(f'Autre RDM avec bruit (SNR={snr_values[len(snr_values)-1]} dB) ')
+
 plt.tight_layout()
-plt.show(block=False)
+plt.show(block=True)
 plt.savefig("RDM_WITHOUT_WITH.png")
-plt.show()
+

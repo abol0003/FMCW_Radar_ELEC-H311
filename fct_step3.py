@@ -8,14 +8,16 @@ def add_awgn(signal, snr_dB):
     :param snr_dB: Le rapport signal-sur-bruit en décibels.
     :return: Le signal avec le bruit ajouté.
     """
-    snr_linear = 10**(snr_dB / 10)
-    signal_power = np.mean(np.abs(signal)**2)
+
+    snr_linear = 10 ** (snr_dB / 10)
+    signal_power = np.mean(np.abs(signal ** 2))
     noise_power = signal_power / snr_linear
     # Générer du bruit gaussien complexe avec la puissance calculée
-    real_noise = np.random.randn(*signal.shape)   #np.random.randn(*signal.shape) genere du bruit gaussien
-    imag_noise = np.random.randn(*signal.shape)  # de manière aléatoire de moyenne nulle et ecart type 1
-    noise = np.sqrt(noise_power / 2) * (real_noise + 1j * imag_noise)
-    return signal + noise
+
+    noise = np.sqrt(noise_power/2) * (np.random.randn(*signal.shape) + 1j * np.random.randn(*signal.shape))
+    sgnl_wn = signal + noise
+
+    return sgnl_wn
 
 def get_N_K_ref(K, N, T, c, F_c, Beta, t_emission, random_speed, random_delay, F_b, F_d, R_0, Kappa):
     """
@@ -58,7 +60,7 @@ def detect_targets(rdm, threshold):
 
        :param rdm: La matrice de distance relative (RDM).
        :param threshold: Le seuil de détection.
-       :return: Une matrice binaire où les valeurs au-dessus du seuil sont 1 et les autres sont 0.
+       :return: Une matrice binaire où les valeurs au-dessus du seuil sont True et les autres sont False.
        """
     binary_map = (rdm > threshold).astype(bool)
     return binary_map
