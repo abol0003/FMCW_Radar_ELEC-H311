@@ -1,4 +1,23 @@
 import numpy as np
+
+def get_N_K_ref(K, N, T, c, F_c, Beta, t_emission, random_speed, random_delay, F_b, F_d, R_0, Kappa):
+    """
+        Génère les signaux radar pour chaque instant de temps et chaque échantillon de fréquence Doppler.
+    :return: Deux matrices N_K_fig_4 et N_K_eq_16 qui représentent les signaux générés pour chaque méthode.
+    """
+    K_N_fig_4 = np.zeros((K, N), dtype=complex)  # Utilisation de la figure 4 dans les principes du radar FMCW
+    K_N_eq_16 = np.zeros((K, N), dtype=complex)  # Utilisation de l'équation 16 dans les principes du radar FMCW
+
+    for k in range(K):
+        x_t_fig_4 = get_output_signal(T, c, F_c, Beta, t_emission, random_speed, random_delay, R_0, k)
+        x_t_eq_16 = Kappa * np.exp(1j * 2 * np.pi * F_b * t_emission[k, :]) * np.exp(1j * 2 * np.pi * F_d * k * T)
+        K_N_eq_16[k, :] = x_t_eq_16
+        K_N_fig_4[k, :] = x_t_fig_4
+
+    N_K_fig_4 = K_N_fig_4.T  # Comme présenté dans le cours (matrice NxK)
+    N_K_eq_16 = K_N_eq_16.T  # Comme présenté dans le cours (matrice NxK)
+
+    return N_K_fig_4, N_K_eq_16
 def get_output_signal(T, c, F_c, Beta, t_emission, random_speed, random_delay, R_0, k):
     """
         Génère le signal vidéo pour un écho d'un chirp émis.

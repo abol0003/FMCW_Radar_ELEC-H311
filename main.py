@@ -4,7 +4,7 @@ from sklearn.metrics import roc_curve, auc
 ############ STEP1 ############
 # Paramètres du chirp
 B = 200e6  # Plage de fréquence en Hz
-T = 0.2e-3  # Durée du chirp en secondes
+T = 0.1e-3  # Durée du chirp en secondes
 F = 512e6  # Fréquence d'échantillonnage en Hz
 num_samples = 2 ** 18  # Nombre d'échantillons
 
@@ -79,7 +79,7 @@ guard_samples = 5 # Nombre d'échantillons de garde
 R_max = 20  # Portée maximale en mètres
 V_max = 2   # Vitesse maximale en m/s
 c = 299792458.0  # Vitesse de la lumière en m/s (3e8 m/s)
-trgt_numb = 3  # nombre de cibles
+trgt_numb = 10# nombre de cibles
 Beta = B / T    # Pente du chirp
 Tau_max = 2 * R_max / c # Temps de propagation maximal
 
@@ -93,16 +93,16 @@ t_emission_mat = np.zeros((K, N))
 t_reception_mat = np.zeros((K, N))
 Phi_t_mat = np.zeros((K, N))
 matrices_t_reception = [np.zeros((K, N)) for _ in range(trgt_numb)]
-Tot_RDM_fig_4 = np.zeros((N, K))
-Tot_RDM_eq_16 = np.zeros((N, K))
+
 
 # Génération des retards et vitesses aléatoires
 random_delays = np.random.rand(trgt_numb) * Tau_max
 target = (random_delays/Tau_max)*R_max # à enlever une fois le rapport terminer
 random_speeds = np.random.rand(trgt_numb) * V_max
-print(target)
+
 print(random_speeds)
 R_0 = (c * random_delays) / 2
+print(R_0)
 Kappa = np.exp(4 * np.pi * 1j * R_0 * F_c / c) * np.exp(-2 * np.pi * 1j * Beta ** 2 * R_0 ** 2 / c ** 2)
 F_d = 2 * random_speeds * F_c / c
 F_b = 2 * R_0 * Beta / c
@@ -147,6 +147,9 @@ for r in range(trgt_numb):
 # Initialisation des matrices totales pour les RDM
 Tot_RDM_fig_4 = np.zeros((N, K))
 Tot_RDM_eq_16 = np.zeros((N, K))
+#Pour step 3
+Tot_N_K_fig_4 = np.zeros((N, K), dtype=complex)
+Tot_N_K_eq_16 = np.zeros((N, K), dtype=complex)
 
 for r in range(trgt_numb):
     # Appel à la fonction get_RDM_won pour obtenir les RDM pour la cible actuelle
@@ -155,6 +158,12 @@ for r in range(trgt_numb):
     # Ajout des RDM calculées à la somme cumulative
     Tot_RDM_fig_4 += RDM_fig_4
     Tot_RDM_eq_16 += RDM_eq_16
+
+    # permet l'etape 3
+    N_K_fig_4, N_K_eq_16 = get_N_K_ref(K, N, T, c, F_c, Beta, t_emission_mat, random_speeds[r], random_delays[r], F_b[r], F_d[r], R_0[r], Kappa[r])
+
+    Tot_N_K_fig_4 += N_K_fig_4
+    Tot_N_K_eq_16 += N_K_eq_16  # pour rdm
 
 # sauvegarde pour step 3
 rdm_without_noise = Tot_RDM_eq_16
@@ -187,36 +196,13 @@ plt.savefig("RDM_WITHOUT.png")
 from fct_step3 import *
 
 # variables
-snr_values = [-60,10,80]  # Valeurs de SNR à évaluer
+snr_values = [-25,10,80]  # Valeurs de SNR à évaluer
 thresolds = 3e-6# Seuil pour la détection
 
 # Initialisation des matrices totales
-Tot_N_K_fig_4 = np.zeros((N, K), dtype=complex)
-Tot_N_K_eq_16 = np.zeros((N, K), dtype=complex)
 roc_data = []
 RDM_wn_16_snr=[]
-# Étape 2 : Calculer la courbe ROC et l'AUC et RDM
-for r in range(trgt_numb):
-    N_K_fig_4, N_K_eq_16 = get_N_K_ref(K, N, T, c, F_c, Beta, t_emission_mat, random_speeds[r], random_delays[r], F_b[r], F_d[r], R_0[r], Kappa[r])
-
-    Tot_N_K_fig_4 += N_K_fig_4
-    Tot_N_K_eq_16 += N_K_eq_16  #pour rdm
-    for snr in snr_values:
-        #pour le roc
-        N_K_noise_roc = add_awgn(N_K_eq_16, snr) # Ajouter du bruit blanc gaussien à la matrice du scenario actuel
-        roc_wn_16 = get_RDM_wn(N_K_noise_roc)   # Calculer la RDM avec bruit pour le roc
-
-
-        # Appliquer un seuil pour détecter les cibles
-        normRDM_Won = rdm_without_noise / np.max(rdm_without_noise) # Normaliser la RDM sans bruit
-        binary_map_won = detect_targets(normRDM_Won, thresolds) # Appliquer le seuil pour détecter les cibles
-
-        # Étape 2 : Calculer la courbe ROC et l'AUC
-        fpr, tpr, thresholds = roc_curve(binary_map_won.flatten(), np.abs(roc_wn_16).flatten()) # Calculer les taux de faux positifs et de vrais positifs
-        roc_auc = auc(fpr, tpr) # Calculer l'AUC
-
-        # Stocker les résultats pour le scénario actuel, la valeur de SNR et le numéro de cible
-        roc_data.append((fpr, tpr, roc_auc, r, snr))
+# Calculer la courbe ROC et l'AUC et RDM
 
 for snr in snr_values:
     # pour le rdm
@@ -224,10 +210,25 @@ for snr in snr_values:
     rdm_wn_16 = get_RDM_wn(N_K_noise_rdm)  # Calculer la RDM avec bruit
     RDM_wn_16_snr.append(rdm_wn_16.copy()) # Stocker la RDM avec bruit pour chaque valeur de SNR
 
+    # pour le roc
+    N_K_noise_roc = add_awgn(N_K_eq_16, snr)  # Ajouter du bruit blanc gaussien à la matrice du scenario actuel
+    roc_wn_16 = get_RDM_wn(N_K_noise_roc)  # Calculer la RDM avec bruit pour le roc
+
+    # Appliquer un seuil pour détecter les cibles
+    normRDM_Won = rdm_without_noise / np.max(rdm_without_noise)  # Normaliser la RDM sans bruit
+    binary_map_won = detect_targets(normRDM_Won, thresolds)  # Appliquer le seuil pour détecter les cibles
+
+    # Étape 2 : Calculer la courbe ROC et l'AUC
+    fpr, tpr, thresholds = roc_curve(binary_map_won.flatten(), np.abs(roc_wn_16).flatten())  # Calculer les taux de faux positifs et de vrais positifs
+    roc_auc = auc(fpr, tpr)  # Calculer l'AUC
+
+    # Stocker les résultats pour le scénario actuel, la valeur de SNR et le numéro de cible
+    roc_data.append((fpr, tpr, roc_auc, snr))
+
 # Plot de la courbe ROC
 plt.figure(figsize=(10, 7))
-for i, (fpr, tpr, roc_auc, scenario, snr) in enumerate(roc_data):
-    plt.plot(fpr, tpr, lw=2, label=f'Scénario {scenario + 1} (SNR {snr} dB, AUC = {roc_auc:.2f})')
+for i, (fpr, tpr, roc_auc, snr) in enumerate(roc_data):
+    plt.plot(fpr, tpr, lw=2, label= f'SNR {snr} dB,( AUC = {roc_auc:.2f})')
 
 plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
 plt.xlim([0.0, 1.0])
@@ -243,12 +244,6 @@ plt.savefig("ROC.png")
 plt.figure(figsize=(16, 6))
 vl_snr=0
 max_amplitude = np.max(rdm_without_noise)
-#norm_rdm_without_noise = np.abs(rdm_without_noise) / np.max(np.abs(rdm_without_noise))
-#norm_rdm_with_noise = np.abs(RDM_wn_16_snr[vl_snr]) / np.max(np.abs(rdm_without_noise))  # Changer [vl_snr] avec l'indice de la valeur de SNR souhaitée
-#norm_rdm_other_with_noise = np.abs(RDM_wn_16_snr[len(snr_values)-1]) / np.max(np.abs(rdm_without_noise))  # Changer [vl_snr] avec l'indice de la valeur de SNR souhaitée
-
-
-#vmax_norm = 1.0  # Plage dynamique maximale pour la visualisation normalisée
 
 # Sous-plot 1 pour RDM sans bruit basée sur Equation 16
 plt.subplot(1, 3, 1)
