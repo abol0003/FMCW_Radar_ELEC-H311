@@ -150,44 +150,65 @@ thresolds = 3e-7# Seuil pour binary map won
 # Initialisation des matrices totales
 
 roc_data = []
+roc_data2 = []
 RDM_wn_16_snr=[]
 
 #Calculer la courbe ROC et l'AUC et RDM
 for snr in snr_values:
     # pour le rdm
-    N_K_noise_rdm = add_awgn(Tot_N_K_eq_16, snr)  # Ajouter du bruit blanc gaussien à la matrice totale
-    rdm_wn_16 = get_RDM_wn(N_K_noise_rdm)  # Calculer la RDM avec bruit
+    N_K_noise_rdm_roc = add_awgn(Tot_N_K_eq_16, snr)  # Ajouter du bruit blanc gaussien à la matrice totale
+    rdm_wn_16 = get_RDM_wn(N_K_noise_rdm_roc)  # Calculer la RDM avec bruit
     RDM_wn_16_snr.append(rdm_wn_16.copy()) # Stocker la RDM avec bruit pour chaque valeur de SNR
 
     # pour le roc
-    N_K_noise_roc = add_awgn(Tot_N_K_eq_16, snr)  # Ajouter du bruit blanc gaussien à la matrice du scenario actuel
-    roc_wn_16 = get_RDM_wn(N_K_noise_roc)  # Calculer la RDM avec bruit pour le roc
 
     # Appliquer un seuil pour détecter les cibles
     normRDM_Won = rdm_without_noise / np.max(rdm_without_noise)  # Normaliser la RDM sans bruit
     binary_map_won = detect_targets(normRDM_Won, thresolds)  # Appliquer le seuil pour détecter les cibles
 
     # Étape 2 : Calculer la courbe ROC et l'AUC
-    fpr, tpr, thresholds = roc_curve(binary_map_won.flatten(), np.abs(roc_wn_16).flatten())  # Calculer les taux de faux positifs et de vrais positifs
-    roc_auc = auc(fpr, tpr)  # Calculer l'AUC
+    fpr, tpr, roc_auc = roc_curve_custom(binary_map_won.flatten(), np.abs(rdm_wn_16).flatten())  # Calculer les taux de faux positifs et de vrais positifs
+
+    fpr2, tpr2, thresholds = roc_curve(binary_map_won.flatten(), np.abs(rdm_wn_16).flatten())  # Calculer les taux de faux positifs et de vrais positifs
+    roc_auc2 = auc(fpr, tpr)  # Calculer l'AUC
 
     # Stocker les résultats pour le scénario actuel, la valeur de SNR et le numéro de cible
-    roc_data.append((fpr, tpr, roc_auc, r, snr))
+    roc_data.append((fpr, tpr, roc_auc, snr))
+    roc_data2.append((fpr2, tpr2, roc_auc2, snr))
 
-# Plot de la courbe ROC
-plt.figure(figsize=(10, 7))
-for i, (fpr, tpr, roc_auc, scenario, snr) in enumerate(roc_data):
-    plt.plot(fpr, tpr, lw=2, label=f'Scénario {scenario + 1} (SNR {snr} dB, AUC = {roc_auc:.2f})')
 
-plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-plt.xlim([0.0, 1.0])
-plt.ylim([0.0, 1.0])
-plt.xlabel('Taux de faux positifs (FPR)')
-plt.ylabel('Taux de vrais positifs (TPR)')
-plt.title(f'Courbe ROC pour les différents scénarios')
-plt.legend(loc="lower right")
-plt.savefig("ROC.png")
+
+# Créer un subplot avec 1 ligne et 2 colonnes
+fig, axs = plt.subplots(1, 2, figsize=(15, 7))
+
+# Premier subplot : roc_curve_custom
+axs[0].plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+for fpr, tpr, roc_auc, snr in roc_data:
+    axs[0].plot(fpr, tpr, lw=2, label=f'SNR {snr} dB, (AUC = {roc_auc:.2f})')
+axs[0].set_xlim([0.0, 1.0])
+axs[0].set_ylim([0.0, 1.0])
+axs[0].set_xlabel('Taux de faux positifs (FPR)')
+axs[0].set_ylabel('Taux de vrais positifs (TPR)')
+axs[0].set_title('ROC Curve - roc_curve_custom')
+axs[0].legend(loc="lower right")
+
+# Deuxième subplot : roc_curve de scikit-learn
+axs[1].plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+for fpr2, tpr2, roc_auc2, snr in roc_data2:
+    axs[1].plot(fpr2, tpr2, lw=2, label=f'SNR {snr} dB, (AUC = {roc_auc2:.2f})')
+axs[1].set_xlim([0.0, 1.0])
+axs[1].set_ylim([0.0, 1.0])
+axs[1].set_xlabel('Taux de faux positifs (FPR)')
+axs[1].set_ylabel('Taux de vrais positifs (TPR)')
+axs[1].set_title('ROC Curve - sklearn roc_curve')
+axs[1].legend(loc="lower right")
+
+# Ajuster la mise en page
+plt.tight_layout()
+
+# Afficher le subplot
 plt.show()
+
 
 
 

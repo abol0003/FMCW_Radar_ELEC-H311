@@ -214,9 +214,8 @@ for snr in snr_values:
     N_K_noise_roc = add_awgn(N_K_eq_16, snr)  # Ajouter du bruit blanc gaussien à la matrice du scenario actuel
     roc_wn_16 = get_RDM_wn(N_K_noise_roc)  # Calculer la RDM avec bruit pour le roc
 
-    # Appliquer un seuil pour détecter les cibles
-    normRDM_Won = rdm_without_noise / np.max(rdm_without_noise)  # Normaliser la RDM sans bruit
-    binary_map_won = detect_targets(normRDM_Won, thresolds)  # Appliquer le seuil pour détecter les cibles
+    # on rend la rdm sans bruit en une lignaire binaire
+    binary_map_won = detect_targets(rdm_without_noise, thresolds)  # Appliquer le seuil pour détecter les cibles
 
     # Étape 2 : Calculer la courbe ROC et l'AUC
     fpr, tpr, thresholds = roc_curve(binary_map_won.flatten(), np.abs(roc_wn_16).flatten())  # Calculer les taux de faux positifs et de vrais positifs
