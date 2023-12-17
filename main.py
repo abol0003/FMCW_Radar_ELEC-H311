@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import roc_curve, auc
+
 
 # ------------ STEP 1 --------------
 # Paramètres du chirp
@@ -218,13 +218,12 @@ for snr in snr_values:
     # Étape 2 : Calculer la courbe ROC et l'AUC
 
     # 1. En utilisant la fonction roc curve faite par nous même
-    fpr, tpr, roc_auc = roc_curve_custom(binary_map_won.flatten(), np.abs(
-        rdm_wn_16).flatten())  # Calculer les taux de faux positifs et de vrais positifs
+    #fpr, tpr, roc_auc = roc_curve_custom(binary_map_won.flatten(), np.abs(rdm_wn_16).flatten())  # Calculer les taux de faux positifs et de vrais positifs
 
     # 2. En utilisant la fonction roc curve toute faite par la blackboxe sklearn.metrics
-
-    # fpr, tpr, thresholds = roc_curve(binary_map_won.flatten(), np.abs(rdm_wn_16).flatten())  # Calculer les taux de faux positifs et de vrais positifs
-    # roc_auc = auc(fpr, tpr)  # Calculer l'AUC
+    from sklearn.metrics import roc_curve, auc
+    fpr, tpr, thresholds = roc_curve(binary_map_won.flatten(), np.abs(rdm_wn_16).flatten())  # Calculer les taux de faux positifs et de vrais positifs
+    roc_auc = auc(fpr, tpr)  # Calculer l'AUC
 
     # Les deux manières ont été comparés et affiche des résultats similaire,
     # juste un tant d'execution plus long pour la roc_curve_custom
