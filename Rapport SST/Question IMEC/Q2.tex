@@ -1,0 +1,3 @@
+\section{Estimation des Angles d'Arrivées}
+
+Afin d'estimer les angles d'arrivées (élévation et azimuth), il est nécessaire d'utiliser un réseau d'antenne tant à la réception qu'à l'émission. Les antennes émettrices vont chacune produire une fréquence orthogonale par rapport aux fréquences des autres antennes afin que les antennes réceptrices puissent identifier de quelle antenne émettrice un signal provient. La disposition spatiale des réseaux d'antenne fait que chaque antenne réceptrice recevra des signaux légèrement différents de chaque antenne émettrice. Il est donc possible de créer un réseau virtuel d'antenne afin d'avoir une bonne résolution angulaire. Une FFT supplémentaire sur le réseau virtuel d'antenne permet d'avoir une estimation  des deux angles. 

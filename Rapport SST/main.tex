@@ -1,0 +1,114 @@
+\documentclass[12pt,a4paper]{ULBReport} %Template de rapport
+\usepackage[utf8]{inputenc}
+\graphicspath{ {./Pictures/} }
+\sceau{Pictures/sceauULB.jpg}
+\usepackage{multirow}
+\usepackage{listings}
+\usepackage{color} 
+\usepackage{setspace} 
+\usepackage{amsmath}
+\usepackage{color}
+\usepackage{hyperref}
+\usepackage{biblatex}
+\usepackage{floatrow}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{subcaption}
+
+
+\addbibresource{biblio.bib}
+
+
+\lstdefinelanguage{Python}{ 
+numbers=left, 
+numberstyle=\footnotesize, 
+numbersep=1em, 
+xleftmargin=1em, 
+framextopmargin=2em, 
+framexbottommargin=2em, 
+showspaces=false, 
+showtabs=false, 
+showstringspaces=false, 
+frame=l, 
+tabsize=4, 
+% Basic 
+basicstyle=\ttfamily\small\setstretch{1}, 
+backgroundcolor=\color{Background}, 
+% Comments 
+commentstyle=\color{Comments}\slshape, 
+% Strings 
+stringstyle=\color{Strings}, 
+morecomment=[s][\color{Strings}]{"""}{"""}, 
+morecomment=[s][\color{Strings}]{'''}{'''}, 
+% keywords 
+morekeywords={import,from,class,def,for,while,if,is,in,elif,else,not,and,or,print,break,continue,return,True,False,None,access,as,,del,except,exec,finally,global,import,lambda,pass,print,raise,try,assert}, 
+keywordstyle={\color{Keywords}\bfseries}, 
+% additional keywords 
+morekeywords={[2]@invariant,pylab,numpy,np,scipy}, 
+keywordstyle={[2]\color{Decorators}\slshape}, 
+emph={self}, 
+emphstyle={\color{self}\slshape}, 
+% 
+} 
+
+\newcommand{\dd}[1]{\mathrm{d}#1}
+\newcommand{\avec}[0]{
+    \hspace{0.2cm}
+    \text{avec :}
+    \hspace{0.2cm}
+}
+\newcommand{\ou}[0]{
+    \hspace{0.2cm}
+    \text{d'où : }
+    \hspace{0.2cm}
+}
+\newcommand{\et}[0]{
+    \hspace{0.2cm}
+    \text{et}
+    \hspace{0.2cm}
+}
+\newcommand{\mtxt}[1]{
+    \hspace{0.2cm}
+    \text{#1}
+}
+
+%La Commande \TODO permet de mettre en rouge clairement ce qu'il reste à faire.
+\newcommand{\TODO}[1]{
+    \color{red}
+    \textbf{TODO : } #1
+    \color{black}
+}
+
+\begin{document}
+
+\titleULB {
+    title={Rapport : Design of a joint radar and communication system},
+    studies={IRCI - BA3 Eléctronique et télécommunication},
+    course ={ELEC-H311 : Signaux et systèmes de télécommunications},
+    author={\textit{Auteurs:} \\ BOLLENGIER Alexis \\SCHEENAERTS Louis },
+    date={\textbf{Année Académique :} \\ 2023 - 2024},
+    teacher={\textit{Professeur : } \\ HORLIN François},
+    logo={Pictures/logo-polytech.jpg},
+    manyAuthor
+}
+
+%--------------------------------%
+
+\chapter{Step 1: FMCW Signal}
+\input{STEP1/FMCW}
+
+\chapter{Step 2: Radar processing}
+\input{STEP2/multiple_chirps}
+\input{STEP2/rdm}
+
+\chapter{Step 3: Radar performance analysis}
+\input{STEP3/add_noise}
+\input{STEP3/roc}
+\chapter{Visit IMEC}
+\input{Question IMEC/Q1}
+\input{Question IMEC/Q2}
+\input{Question IMEC/Q3}
+\input{Question IMEC/Q4}
+
+\input{Annexes/Anx}
+\end{document}

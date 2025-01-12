@@ -1,0 +1,40 @@
+\chapter{Puissance}
+
+ \section{Signal Quelconque}
+ 
+La puissance du signal (\(P_{\text{signal}}\)) est une mesure de l'énergie contenue dans le signal radar complexe. Elle est calculée en prenant la moyenne de la norme au carré de chaque échantillon du signal, comme indiqué par l'équation \ref{eq:P_signal} :
+
+\begin{equation}
+    P_{\text{signal}} = \frac{1}{N} \sum_{i=1}^{N} |x_i|^2
+    \label{eq:P_signal}
+\end{equation}
+
+Ici, \(N\) représente le nombre total d'échantillons du signal radar complexe.\\
+
+\section{\textit{Signal to Noise Ratio } (SNR)}
+
+Le Rapport Signal sur Bruit (\textit{SNR}) en décibels est défini comme le rapport de la puissance du signal (\(P_{\text{signal}}\)) à la puissance du bruit (\(P_{\text{bruit}}\)), comme formulé par l'équation \ref{eq:SNR_db} :
+
+\begin{equation}
+    \text{SNR(dB)} = 10 \cdot \log_{10} \left( \frac{P_{\text{signal}}}{P_{\text{bruit}}} \right)
+    \label{eq:SNR_db}
+\end{equation}
+
+\section{Puissance du bruit}
+
+La puissance du bruit (\(P_{\text{bruit}}\)) est déduite de \ref{eq:SNR_db} et on obtiens :
+
+\begin{equation}
+    P_{\text{bruit}} = \frac{P_{\text{signal}}}{10^{(\text{SNR(dB)}/10)}}
+    \label{eq:p_bruit}
+\end{equation}
+Ensuite, le bruit est calculé comme ci dessous:
+\begin{equation}
+    \text{Bruit} = \sqrt{\frac{P_{\text{bruit}}}{2}} \left(\mathcal{N}(0, 1) + j \cdot \mathcal{N}(0, 1)\right)
+    \label{eq:bruit_blanc}
+\end{equation}
+
+La racine carrée de la moitié de la puissance du bruit est utilisée pour ajuster l'amplitude du bruit. Cela garantit que la variance du bruit est conforme à la puissance du bruit spécifiée.
+\(\mathcal{N}(0, 1)\) représente un échantillon aléatoire tiré d'une distribution normale standard pour la partie réelle et imaginaire du bruit. Cela introduit une composante aléatoire qui caractérise le bruit blanc additif Gaussien
+
+En combinant la partie réelle et imaginaire avec l'ajustement d'amplitude, l'équation génère un bruit blanc gaussien complexe qui peut être additionné\footnote{car on parle bien de bruit blanc \textbf{additif} Gaussien} au signal radar d'origine.\\

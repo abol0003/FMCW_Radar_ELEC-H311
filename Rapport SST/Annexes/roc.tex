@@ -1,0 +1,35 @@
+\chapter{Analyse des Performances}
+
+L'évaluation de la performance d'un système radar repose sur des métriques clés, dont la courbe ROC (Receiver Operating Characteristic) ainsi que les probabilités de fausse alarme et de détection manquée. Cette annexe se concentre sur l'aspect mathématique de ces métriques, en lien direct avec le projet de simulation radar FMCW.
+
+\section{Probabilité}
+
+\subsection{Notations et Définitions}
+
+Soient \( P(VP) \) la probabilité de vraie détection, \( P(FA) \) la probabilité de fausse alarme, \( P \) le nombre total de signaux réels, \( N \) le nombre de signaux absents, et \( n \) le nombre total de réalisations.
+
+La probabilité de fausse alarme (\( P(FA) \)) est définie comme la fréquence relative de fausses alarmes :
+\[ P(FA) \approx \frac{n_{FA}}{N} \]
+
+La probabilité de vraie détection (\( P(VP) \)) est définie comme la fréquence relative de vraies détections :
+\[ P(VP) \approx \frac{n_{VP}}{P} \]
+
+La probabilité de raté (\( P(\text{raté}) \)) est la probabilité de ne pas détecter un signal réel :
+\[ P(\text{raté}) = \frac{n_{\text{raté}}}{P} \]
+
+\subsection{Calcul des Probabilités}
+
+Les probabilités \( P(VP) \) et \( P(\text{raté}) \) sont liées par \( P(\text{raté}) = 1 - P(VP) \). Toutes les probabilités nécessaires peuvent ainsi être calculées en utilisant la théorie des probabilités.
+
+\section{Courbe ROC}
+
+La courbe ROC est obtenue en évaluant \( P(FA) \) par rapport à \( P(VP) \) pour différentes valeurs de seuil. Chaque point de la courbe correspond à une valeur de seuil spécifique. Une courbe proche du coin supérieur gauche indique une meilleure performance du système.
+
+\subsection{Implémentation Numérique}
+
+La simulation numérique génère un signal non perturbé auquel un bruit blanc additif gaussien est ajouté. Les probabilités sont calculées pour chaque seuil en comptabilisant les ratés et les fausses alarmes sur toutes les réalisations.
+
+\subsection{Discussion des Résultats}
+
+Les résultats de la courbe ROC fournissent des indications sur l'efficacité du système, avec une interprétation directe du compromis entre \( P(FA) \) et \( P(VP) \). En général, les performances du radar s'améliorent avec des valeurs élevées de SNR, entraînant plus de signaux détectés et moins de fausses alarmes.
+
